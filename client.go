@@ -20,7 +20,7 @@ var (
 	charLock = sync.Mutex{}
 )
 
-func main() {
+func players() {
 	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
 		thing := Thing{}
 		err := json.NewDecoder(req.Body).Decode(&thing)
@@ -45,8 +45,6 @@ func main() {
 	go MoveAround("james")
 	go MoveAround("george")
 	go MoveAround("jeff")
-
-	time.Sleep(time.Second * 4)
 }
 
 const meter = .00001 / 1.111
@@ -56,31 +54,35 @@ type Client struct {
 	name string
 }
 type Character struct {
-	p             *pinhole.Pinhole
 	things        chan Thing
 	currentThings map[string]Thing
+	wait          chan struct{}
 }
 
 func (c *Character) HandleThings() {
-	ticker := time.NewTicker(time.Millisecond * 100)
-	changed := true
 	for {
 		select {
 		case t := <-c.things:
 			if t.Nearby.ID != "" {
 				c.currentThings[t.Nearby.ID] = t
-				changed = true
 			}
-		case <-ticker.C:
-			if changed {
-				changed = false
-				p = pinhole.New()
-				for _, t := range c.currentThings {
-					p.DrawDot(t.Nearby.Object.Coordinates[0], t.Nearby.Object.Coordinates[1], 0, .1)
-				}
-			}
+		case c.wait <- struct{}{}:
 		}
 	}
+}
+
+func (c *Character) GetPinHole() *pinhole.Pinhole {
+	<-c.wait
+	p := pinhole.New()
+	for _, t := range c.currentThings {
+
+		x := t.Nearby.Object.Coordinates[0] * (1 / meter)
+		y := t.Nearby.Object.Coordinates[1] * (1 / meter)
+		log.Println(t.KeyedPoint.Object.Coordinates, t.Nearby.Object.Coordinates, x, y)
+
+		p.DrawDot(x, y, 0, .1)
+	}
+	return p
 }
 
 type Thing struct {
@@ -110,7 +112,7 @@ type Point struct {
 }
 
 func MoveAround(name string) {
-	person := Character{pinhole.New(), make(chan Thing), make(map[string]Thing)}
+	person := Character{make(chan Thing), make(map[string]Thing), make(chan struct{})}
 	charLock.Lock()
 	chars[name] = &person
 	charLock.Unlock()
