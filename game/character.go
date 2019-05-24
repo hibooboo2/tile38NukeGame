@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"math/rand"
+	"sync"
 )
 
 const meter = .00001 / 1.111
@@ -115,30 +116,35 @@ func (c *Character) MiniMap(img *image.RGBA, startX, startY, size int) {
 			img.Set(x, y, color.RGBA{255, 255, 0, 0})
 		}
 	}
-	drawBox(img, size/2+startX, size/2+startY, 4, color.RGBA{120, 255, 100, 0})
+	drawBox(img, size/2+startX, size/2+startY, 4, getUserColor(c.name))
 
 	for _, t := range c.currentThings {
 		x := c.posx
 		y := c.posy
-		x -= t.Nearby.Object.Coordinates[0]
-		y -= t.Nearby.Object.Coordinates[1]
+		x -= t.Nearby.Object.Coordinates[1]
+		y -= t.Nearby.Object.Coordinates[0]
 		x *= (1 / meter)
 		y *= (1 / meter)
 
-		drawBox(img, int(x)+size/2+startX, int(y)+size/2+startY, 4, c.GetUserColor(t.Nearby.ID))
+		drawBox(img, int(x)+size/2+startX, int(y)+size/2+startY, 4, getUserColor(t.Nearby.ID))
 	}
 	// fmt.Println()
 	c.mini <- struct{}{}
 }
-func (c *Character) GetUserColor(name string) color.RGBA {
-	if c.colors == nil {
-		c.colors = make(map[string]color.RGBA)
-	}
-	userColor, ok := c.colors[name]
+
+var (
+	colors    = map[string]color.RGBA{}
+	colorLock = sync.Mutex{}
+)
+
+func getUserColor(name string) color.RGBA {
+	colorLock.Lock()
+	userColor, ok := colors[name]
 	if !ok {
 		userColor = color.RGBA{255, uint8(rand.Int() % 255), uint8(rand.Int() % 255), uint8(rand.Int() % 255)}
-		c.colors[name] = userColor
+		colors[name] = userColor
 	}
+	colorLock.Unlock()
 	return userColor
 }
 
