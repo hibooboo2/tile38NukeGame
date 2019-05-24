@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"image"
+	"os"
 
 	"github.com/hibooboo2/tile38NukeGame/game"
 
@@ -16,17 +16,12 @@ var opts = pinhole.DefaultImageOptions
 var n = 60
 
 func main() {
-	go playersWebHooks()
-	for _, name := range []string{"james", "jay", "matt"} {
-		c := game.NewCharacter(name)
-		chars[c.Name()] = c
+	name, _ := os.Hostname()
+	if len(os.Args) > 1 {
+		name = os.Args[1]
 	}
-	player = chars["james"]
-	i := 0.000
-	for _, c := range chars {
-		c.MoveRel(5, 5+i)
-		i++
-	}
+	player = game.NewCharacter(name)
+
 	wnd := nucular.NewMasterWindow(0, "Counter", updatefn)
 	s := style.FromTheme(style.DarkTheme, 2.0)
 	s.NormalWindow.MinSize = image.Point{1920, 1080}
@@ -41,10 +36,8 @@ func updatefn(w *nucular.Window) {
 	handleMoveUsers(w.Input())
 
 	w.Row(200).Static(200)
-	charLock.Lock()
 	img := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
 	player.MiniMap(img, 200, 200, 200)
-	charLock.Unlock()
 	w.Image(img)
 }
 
@@ -61,14 +54,6 @@ func handleMoveUsers(w *nucular.Input) {
 			player.MoveRel(0, -1)
 		case 'd':
 			player.MoveRel(-1, 0)
-		case '1':
-			for _, p := range chars {
-				if player.Name() != p.Name() {
-					player = p
-					fmt.Println("Changed to:", p.Name())
-					break
-				}
-			}
 		}
 	}
 }

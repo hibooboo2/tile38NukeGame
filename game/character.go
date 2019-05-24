@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"log"
 	"math/rand"
 	"sync"
 )
@@ -73,6 +74,9 @@ func NewCharacter(name string) *Character {
 		c:             NewClient("http://10.14.12.11:9851"),
 	}
 	go c.handleThings()
+	charLock.Lock()
+	chars[c.name] = c
+	charLock.Unlock()
 	return c
 }
 
@@ -84,21 +88,32 @@ func (c *Character) MoveRel(x, y float64) {
 	<-c.move
 	c.posx += (x * meter)
 	c.posy += (y * meter)
+	go c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
 	c.move <- struct{}{}
 }
 
 func (c *Character) handleThings() {
-	c.c.Notifications(c.name, "http://10.14.12.68:8081")
+	c.c.Notifications(c.name)
+	i := 0
 	for {
 		select {
 		case t := <-c.Things:
+			i++
+			prev := c.currentThings[t.ID]
 			c.currentThings[t.ID] = t
+			if t.ID == c.name {
+				log.Println("WTF!", c.name, i)
+			}
+			if prev.Object.Coordinates.String() == t.Object.Coordinates.String() {
+				log.Println("Same loc!", c.name, t.ID)
+			} else {
+				log.Println("Someone moved:", c.name, t.ID, t.Object.Coordinates.String())
+			}
 		case c.mini <- struct{}{}:
 			<-c.mini
 		case c.move <- struct{}{}:
 			<-c.move
 			fmt.Println("moved", c.name, c.posx*(1/meter), c.posy*(1/meter))
-			c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
 		}
 	}
 }
