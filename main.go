@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"image"
-	"time"
+
+	"github.com/hibooboo2/tile38NukeGame/game"
 
 	"github.com/aarzilli/nucular"
 	"github.com/aarzilli/nucular/style"
@@ -14,7 +16,17 @@ var opts = pinhole.DefaultImageOptions
 var n = 60
 
 func main() {
-	go players()
+	go playersWebHooks()
+	for _, name := range []string{"james", "matt"} {
+		c := game.NewCharacter(name)
+		chars[c.Name()] = c
+	}
+	player = chars["james"]
+	i := 0.000
+	for _, c := range chars {
+		c.MoveRel(5, 5+i)
+		i++
+	}
 	wnd := nucular.NewMasterWindow(0, "Counter", updatefn)
 	s := style.FromTheme(style.DarkTheme, 2.0)
 	s.NormalWindow.MinSize = image.Point{1920, 1080}
@@ -26,18 +38,38 @@ func main() {
 }
 
 func updatefn(w *nucular.Window) {
-	height := 1080 / 16
-	width := 1920 / 16
+	handleMoveUsers(w.Input())
 
-	w.Row(height).Static(width)
-	height = 1080 / 4
-	width = 1920 / 4
+	w.Row(200).Static(200)
 	charLock.Lock()
-	for _, c := range chars {
-		p := c.GetPinHole()
-		w.Image(p.Image(width, height, opts))
-	}
+	img := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
+	chars["james"].MiniMap(img, 0, 0, 200)
+	chars["matt"].MiniMap(img, 200, 0, 200)
 	charLock.Unlock()
+	w.Image(img)
 }
 
-var t = time.Tick(time.Millisecond * 13)
+var player *game.Character
+
+func handleMoveUsers(w *nucular.Input) {
+	for _, key := range w.Keyboard.Keys {
+		switch key.Rune {
+		case 'w':
+			player.MoveRel(0, 1)
+		case 'a':
+			player.MoveRel(1, 0)
+		case 's':
+			player.MoveRel(0, -1)
+		case 'd':
+			player.MoveRel(-1, 0)
+		case '1':
+			for _, p := range chars {
+				if player.Name() != p.Name() {
+					player = p
+					fmt.Println("Changed to:", p.Name())
+					break
+				}
+			}
+		}
+	}
+}
