@@ -92,15 +92,7 @@ func (c *Character) handleThings() {
 	for {
 		select {
 		case t := <-c.Things:
-			if t.ID != "" {
-				fmt.Println("got thing", t.ID, t.Object.Coordinates)
-				prev := c.currentThings[t.ID]
-				if prev.Object.Coordinates.String() == t.Object.Coordinates.String() {
-					fmt.Println("It didnt move", c.name, t.ID)
-				} else {
-					c.currentThings[t.ID] = t
-				}
-			}
+			c.currentThings[t.ID] = t
 		case c.mini <- struct{}{}:
 			<-c.mini
 		case c.move <- struct{}{}:
