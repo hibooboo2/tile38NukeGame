@@ -26,10 +26,10 @@ func playersWebHooks() {
 		}
 
 		charLock.Lock()
-		c, ok := chars[thing.ID]
+		c, ok := chars[thing.Nearby.ID]
 		charLock.Unlock()
 		if ok {
-			c.Things <- thing
+			c.Things <- thing.KeyedPoint
 		} else {
 			log.Printf("%s %#v", req.URL.String(), thing.ID, thing.Nearby.ID)
 		}

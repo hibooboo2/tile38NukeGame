@@ -15,8 +15,8 @@ type Character struct {
 	name          string
 	c             *Client
 	posx, posy    float64
-	Things        chan Thing
-	currentThings map[string]Thing
+	Things        chan KeyedPoint
+	currentThings map[string]KeyedPoint
 	move          chan struct{}
 	mini          chan struct{}
 	colors        map[string]color.RGBA
@@ -65,8 +65,8 @@ func (c Coord) String() string {
 
 func NewCharacter(name string) *Character {
 	c := &Character{
-		Things:        make(chan Thing),
-		currentThings: make(map[string]Thing),
+		Things:        make(chan KeyedPoint),
+		currentThings: make(map[string]KeyedPoint),
 		move:          make(chan struct{}),
 		mini:          make(chan struct{}),
 		name:          name,
@@ -92,11 +92,14 @@ func (c *Character) handleThings() {
 	for {
 		select {
 		case t := <-c.Things:
-			if t.Nearby.ID != "" && t.Nearby.Meters < 100 {
-				fmt.Println("got thing", t.ID, t.KeyedPoint.Object.Coordinates, t.Nearby.ID, t.Nearby.Object)
-				c.currentThings[t.Nearby.ID] = t
-			} else {
-				delete(c.currentThings, t.Nearby.ID)
+			if t.ID != "" {
+				fmt.Println("got thing", t.ID, t.Object.Coordinates)
+				prev := c.currentThings[t.ID]
+				if prev.Object.Coordinates.String() == t.Object.Coordinates.String() {
+					fmt.Println("It didnt move", c.name, t.ID)
+				} else {
+					c.currentThings[t.ID] = t
+				}
 			}
 		case c.mini <- struct{}{}:
 			<-c.mini
@@ -121,12 +124,12 @@ func (c *Character) MiniMap(img *image.RGBA, startX, startY, size int) {
 	for _, t := range c.currentThings {
 		x := c.posx
 		y := c.posy
-		x -= t.Nearby.Object.Coordinates[1]
-		y -= t.Nearby.Object.Coordinates[0]
+		x -= t.Object.Coordinates[1]
+		y -= t.Object.Coordinates[0]
 		x *= (1 / meter)
 		y *= (1 / meter)
 
-		drawBox(img, int(x)+size/2+startX, int(y)+size/2+startY, 4, getUserColor(t.Nearby.ID))
+		drawBox(img, int(x)+size/2+startX, int(y)+size/2+startY, 4, getUserColor(t.ID))
 	}
 	// fmt.Println()
 	c.mini <- struct{}{}

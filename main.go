@@ -17,7 +17,7 @@ var n = 60
 
 func main() {
 	go playersWebHooks()
-	for _, name := range []string{"james", "matt"} {
+	for _, name := range []string{"james", "jay", "matt"} {
 		c := game.NewCharacter(name)
 		chars[c.Name()] = c
 	}
@@ -43,8 +43,7 @@ func updatefn(w *nucular.Window) {
 	w.Row(200).Static(200)
 	charLock.Lock()
 	img := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
-	chars["james"].MiniMap(img, 0, 0, 200)
-	chars["matt"].MiniMap(img, 200, 0, 200)
+	player.MiniMap(img, 200, 200, 200)
 	charLock.Unlock()
 	w.Image(img)
 }
