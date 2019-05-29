@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"sync"
+	"time"
 )
 
 const meter = .00001 / 1.111
@@ -88,13 +89,14 @@ func (c *Character) MoveRel(x, y float64) {
 	<-c.move
 	c.posx += (x * meter)
 	c.posy += (y * meter)
-	go c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
 	c.move <- struct{}{}
 }
 
 func (c *Character) handleThings() {
 	c.c.Notifications(c.name)
 	i := 0
+	ticker := time.NewTicker(time.Millisecond * 100)
+	lastx, lasty := c.posx, c.posy
 	for {
 		select {
 		case t := <-c.Things:
@@ -114,6 +116,11 @@ func (c *Character) handleThings() {
 		case c.move <- struct{}{}:
 			<-c.move
 			fmt.Println("moved", c.name, c.posx*(1/meter), c.posy*(1/meter))
+		case <-ticker.C:
+			if lastx != c.posx || lasty != c.posy {
+				c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
+				lastx, lasty = c.posx, c.posy
+			}
 		}
 	}
 }

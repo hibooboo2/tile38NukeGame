@@ -34,18 +34,32 @@ func (c *Client) Notifications(name string) bool {
 
 func (c *Client) post(cmd string) bool {
 	// http://10.14.12.11:9851
-	resp, err := c.c.Post(c.baseUrl, "", strings.NewReader(cmd))
+	s := time.Now()
+	defer func() {
+		log.Println(time.Since(s))
+	}()
+	timePost := time.Now()
+
+	req, err := http.NewRequest(http.MethodPost, c.baseUrl, strings.NewReader(cmd))
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
+	resp, err := c.c.Do(req)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
 	val := map[string]interface{}{}
+	timePost = time.Now()
 	json.NewDecoder(resp.Body).Decode(&val)
-	if len(val) > 2 {
-		fmt.Println(val)
+	if len(val) != 2 {
+		log.Println(val)
 		return false
 	}
-	fmt.Println(val["ok"], val["elapsed"])
+	log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
+	log.Println(val["ok"], val["elapsed"])
 	return val["ok"].(bool)
 }
 
@@ -79,12 +93,12 @@ func init() {
 		panic(err)
 	}
 
-	boundAddr = fmt.Sprintf("http://%s:%d", GetOutboundIP().String(), listener.Addr().(*net.TCPAddr).Port)
+	boundAddr = fmt.Sprintf("http://%s:%d", GetBoundAddr(), listener.Addr().(*net.TCPAddr).Port)
 	go http.Serve(listener, nil)
 }
 
 // Get preferred outbound ip of this machine
-func GetOutboundIP() net.IP {
+func GetBoundAddr() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		log.Fatal(err)
@@ -93,5 +107,5 @@ func GetOutboundIP() net.IP {
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
-	return localAddr.IP
+	return localAddr.IP.String()
 }
