@@ -1,3 +1,5 @@
+//build !js,!wasm
+
 package main
 
 import (
@@ -14,7 +16,6 @@ var n = 60
 var player *game.Character
 
 func main() {
-	c := make(chan struct{})
 	name, _ := os.Hostname()
 	if len(os.Args) > 1 {
 		name = os.Args[1]
@@ -22,5 +23,4 @@ func main() {
 	player = game.NewCharacter(name)
 
 	ui()
-	<-c
 }
