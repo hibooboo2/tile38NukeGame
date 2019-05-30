@@ -3,10 +3,9 @@ package game
 import (
 	"bytes"
 	"fmt"
-	"image"
+	"hash/fnv"
 	"image/color"
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -125,15 +124,11 @@ func (c *Character) handleThings() {
 	}
 }
 
-func (c *Character) MiniMap(img *image.RGBA, startX, startY, size int) {
+func (c *Character) MiniMap(drawBox func(x, y, size int, c color.RGBA), startX, startY, size int) {
 	<-c.mini
 	// fmt.Print(c.name, " ", len(c.currentThings), " ")
-	for x := startX; x < startX+size; x++ {
-		for y := startY; y < startY+size; y++ {
-			img.Set(x, y, color.RGBA{255, 255, 0, 0})
-		}
-	}
-	drawBox(img, size/2+startX, size/2+startY, 4, getUserColor(c.name))
+	drawBox(startX+size/2, startY+size/2, size, color.RGBA{255, 255, 0, 0})
+	drawBox(size/2+startX, size/2+startY, 4, getUserColor(c.name))
 
 	for _, t := range c.currentThings {
 		x := c.posx
@@ -143,7 +138,7 @@ func (c *Character) MiniMap(img *image.RGBA, startX, startY, size int) {
 		x *= (1 / meter)
 		y *= (1 / meter)
 
-		drawBox(img, int(x)+size/2+startX, int(y)+size/2+startY, 4, getUserColor(t.ID))
+		drawBox(int(x)+size/2+startX, int(y)+size/2+startY, 4, getUserColor(t.ID))
 	}
 	// fmt.Println()
 	c.mini <- struct{}{}
@@ -155,23 +150,19 @@ var (
 )
 
 func getUserColor(name string) color.RGBA {
+	colorVals := hash(name)
 	colorLock.Lock()
 	userColor, ok := colors[name]
 	if !ok {
-		userColor = color.RGBA{255, uint8(rand.Int() % 255), uint8(rand.Int() % 255), uint8(rand.Int() % 255)}
+		userColor = color.RGBA{uint8(colorVals), uint8(colorVals >> 8), uint8(colorVals >> 16), uint8(colorVals >> 24)}
 		colors[name] = userColor
 	}
 	colorLock.Unlock()
 	return userColor
 }
 
-func drawBox(img *image.RGBA, x, y, size int, c color.RGBA) {
-	b := img.Bounds()
-	if x > b.Min.X && x < b.Max.X && y > b.Min.Y && y < b.Max.Y {
-		for i := -size / 2; i < size/2; i++ {
-			for j := -size / 2; j < size/2; j++ {
-				img.Set(x+i, y+j, c)
-			}
-		}
-	}
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
 }
