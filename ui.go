@@ -9,8 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/veandco/go-sdl2/sdl"
-	"github.com/veandco/go-sdl2/ttf"
+	sdl "github.com/veandco/go-sdl2/sdl"
 )
 
 func ui() {
@@ -27,9 +26,9 @@ func getRenderer(h, w int32) (*sdl.Renderer, func()) {
 		panic(err)
 	}
 
-	if err := ttf.Init(); err != nil {
-		panic(err)
-	}
+	// if err := ttf.Init(); err != nil {
+	// 	panic(err)
+	// }
 
 	window, r, err := sdl.CreateWindowAndRenderer(w, h, sdl.WINDOW_SHOWN)
 	if err != nil {
@@ -44,7 +43,7 @@ func getRenderer(h, w int32) (*sdl.Renderer, func()) {
 		func() {
 			window.Destroy()
 			sdl.Quit()
-			ttf.Quit()
+			// ttf.Quit()
 			runtime.UnlockOSThread()
 		}
 
