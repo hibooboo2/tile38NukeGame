@@ -1,26 +1,22 @@
-// +build nuke
+// +build nuke,!js,!wasm
 
 package main
 
 import (
 	"image"
 	"image/color"
-	"log"
 
 	"github.com/aarzilli/nucular"
 	"github.com/aarzilli/nucular/style"
 )
 
 func ui() {
-	log.Println("NUKE!")
 	wnd := nucular.NewMasterWindow(0, "Counter", updatefn)
 	s := style.FromTheme(style.DarkTheme, 2.0)
 	s.NormalWindow.MinSize = image.Point{1920, 1080}
 	wnd.SetStyle(s)
 
 	wnd.Main()
-	opts.LineWidth = 4
-	opts.Scale = 4
 }
 
 func updatefn(w *nucular.Window) {

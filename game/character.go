@@ -114,6 +114,7 @@ func NewCharacter(name string) *Character {
 	}
 	go c.handleThings()
 	go c.handleBullets()
+	c.MoveRel(1, 1)
 	charLock.Lock()
 	chars[c.name] = c
 	charLock.Unlock()
@@ -183,7 +184,9 @@ func (c *Character) handleThings() {
 		case <-ticker.C:
 			if lastx != c.posx || lasty != c.posy {
 				ok := c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
-				log.Println(ok, c.posx, c.posy)
+				if !ok {
+					log.Println(ok, c.posx, c.posy)
+				}
 				lastx, lasty = c.posx, c.posy
 			}
 		}

@@ -1,4 +1,4 @@
-// +build !nuke
+// +build !nuke,!js,!wasm
 
 package main
 

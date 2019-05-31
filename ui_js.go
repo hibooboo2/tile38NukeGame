@@ -3,45 +3,28 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
+	"image/color"
 	"syscall/js"
 	"time"
 )
 
-func events() {
-	//Code to be able to connect to a websocket and connect to a server
-	ws := js.Global().Get("WebSocket").New("ws://localhost:8000/ws")
-	events := make(chan string)
-	ws.Call("addEventListener", "open", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		fmt.Println("open")
-		ws.Set("onmessage", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			log.Println(this.String())
-			msg := args[0]
-			data := msg.Get("data")
-			events <- data.String()
-			return nil
-		}))
+func ui() {
+	window := js.Global()
 
-		someObj := map[string]interface{}{
-			"boom":   3,
-			"hello!": 324.234,
-			"sweet":  false,
-		}
-		data, _ := json.Marshal(someObj)
-		log.Println(ws.Call("send", string(data)))
-		return nil
-	}))
+	cv := window.Get("document").Call("getElementById", "canvas").Call("getContext", "2d")
+	drawFunc := getDrawBoxFunc(cv)
+	for {
+		time.Sleep(time.Second / 60)
+		cv.Call("clearRect", 0, 0, 300, 300)
 
-	go func() {
-		last := time.Now()
-		for evt := range events {
-			log.Println(time.Since(last).Nanoseconds() / int64(time.Millisecond))
-			last = time.Now()
-			vals := map[string]interface{}{}
-			json.Unmarshal([]byte(evt), &vals)
-			log.Println(vals)
-		}
-	}()
+		player.MiniMap(drawFunc, 0, 0, 300)
+	}
+}
+
+func getDrawBoxFunc(cv js.Value) func(x, y, size int, c color.RGBA) {
+	return func(x, y, size int, c color.RGBA) {
+		cv.Set("fillStyle", fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B))
+		cv.Call("fillRect", int32(x-size/2), int32(y-size/2), int32(size), int32(size))
+	}
 }
