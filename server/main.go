@@ -19,6 +19,10 @@ func main() {
 	http.ListenAndServe(":8000", nil)
 }
 
+// Hold players that are currently connected
+// Send players updates when players move
+// Store player positions...
+
 func echo(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

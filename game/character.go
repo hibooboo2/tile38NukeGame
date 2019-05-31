@@ -6,6 +6,8 @@ import (
 	"hash/fnv"
 	"image/color"
 	"log"
+	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -18,9 +20,44 @@ type Character struct {
 	posx, posy    float64
 	Things        chan KeyedPoint
 	currentThings map[string]KeyedPoint
+	bullets       map[int]*Bullet
+	bulletChan    chan *Bullet
 	move          chan struct{}
 	mini          chan struct{}
 	colors        map[string]color.RGBA
+}
+
+type Bullet struct {
+	x    float64
+	y    float64
+	num  int
+	dir  int
+	made time.Time
+}
+
+func (b *Bullet) Move() {
+	switch b.dir {
+	case 0:
+		b.x += meter
+	case 1:
+		b.x -= meter
+	case 2:
+		b.y += meter
+	case 3:
+		b.y -= meter
+	case 4:
+		b.x += meter * .707
+		b.y += meter * .707
+	case 5:
+		b.x += meter * .707
+		b.y -= meter * .707
+	case 6:
+		b.x -= meter * .707
+		b.y += meter * .707
+	case 7:
+		b.x -= meter * .707
+		b.y -= meter * .707
+	}
 }
 
 type Thing struct {
@@ -68,12 +105,15 @@ func NewCharacter(name string) *Character {
 	c := &Character{
 		Things:        make(chan KeyedPoint),
 		currentThings: make(map[string]KeyedPoint),
+		bullets:       make(map[int]*Bullet),
+		bulletChan:    make(chan *Bullet),
 		move:          make(chan struct{}),
 		mini:          make(chan struct{}),
 		name:          name,
 		c:             NewClient("http://10.14.12.11:9851"),
 	}
 	go c.handleThings()
+	go c.handleBullets()
 	charLock.Lock()
 	chars[c.name] = c
 	charLock.Unlock()
@@ -91,24 +131,49 @@ func (c *Character) MoveRel(x, y float64) {
 	c.move <- struct{}{}
 }
 
+func (c *Character) handleBullets() {
+	t := time.NewTicker(time.Millisecond * 40)
+	for {
+		select {
+		case b := <-c.bulletChan:
+			c.bullets[b.num] = b
+		case <-t.C:
+			for _, b := range c.bullets {
+				c.c.post(fmt.Sprintf("SET fleet %d point %f %f", b.num, b.x, b.y))
+				b.Move()
+				if time.Since(b.made) > time.Second*5 {
+					c.c.post(fmt.Sprintf("DEL fleet %d", b.num))
+					delete(c.bullets, b.num)
+				}
+			}
+		}
+	}
+}
 func (c *Character) handleThings() {
 	c.c.Notifications(c.name)
-	i := 0
-	ticker := time.NewTicker(time.Millisecond * 100)
+	ticker := time.NewTicker(time.Millisecond * 1)
 	lastx, lasty := c.posx, c.posy
 	for {
 		select {
 		case t := <-c.Things:
-			i++
+			if t.Object.Type == "delete" {
+				delete(c.currentThings, t.ID)
+				continue
+			}
+
 			prev := c.currentThings[t.ID]
 			c.currentThings[t.ID] = t
+
 			if t.ID == c.name {
-				log.Println("WTF!", c.name, i)
+				log.Println("WTF!", c.name, t.ID)
 			}
 			if prev.Object.Coordinates.String() == t.Object.Coordinates.String() {
 				log.Println("Same loc!", c.name, t.ID)
 			} else {
-				log.Println("Someone moved:", c.name, t.ID, t.Object.Coordinates.String())
+				_, err := strconv.Atoi(t.ID)
+				if err != nil {
+					log.Println("Someone moved:", c.name, t.ID, t.Object.Coordinates.String())
+				}
 			}
 		case c.mini <- struct{}{}:
 			<-c.mini
@@ -117,10 +182,21 @@ func (c *Character) handleThings() {
 			fmt.Println("moved", c.name, c.posx*(1/meter), c.posy*(1/meter))
 		case <-ticker.C:
 			if lastx != c.posx || lasty != c.posy {
-				c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
+				ok := c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
+				log.Println(ok, c.posx, c.posy)
 				lastx, lasty = c.posx, c.posy
 			}
 		}
+	}
+}
+
+func (c *Character) Shoot() {
+	c.bulletChan <- &Bullet{
+		x:    c.posx,
+		y:    c.posy,
+		num:  rand.Int(),
+		dir:  rand.Intn(8),
+		made: time.Now(),
 	}
 }
 

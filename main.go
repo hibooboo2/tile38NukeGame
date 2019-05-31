@@ -6,12 +6,9 @@ import (
 	"os"
 
 	"github.com/hibooboo2/tile38NukeGame/game"
-
-	"github.com/tidwall/pinhole"
 )
 
 var count int
-var opts = pinhole.DefaultImageOptions
 var n = 60
 var player *game.Character
 
@@ -23,4 +20,5 @@ func main() {
 	player = game.NewCharacter(name)
 
 	ui()
+	game.ClearNotifications()
 }

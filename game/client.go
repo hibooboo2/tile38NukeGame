@@ -32,13 +32,23 @@ func (c *Client) Notifications(name string) bool {
 	return c.post(cmd)
 }
 
+func ClearNotifications() {
+	c := NewClient("http://10.14.12.11:9851")
+	charLock.Lock()
+	defer charLock.Unlock()
+	for char := range chars {
+		cmd := fmt.Sprintf("DELHOOK %s", char)
+		c.post(cmd)
+	}
+}
+
 func (c *Client) post(cmd string) bool {
 	// http://10.14.12.11:9851
-	s := time.Now()
-	defer func() {
-		log.Println(time.Since(s))
-	}()
-	timePost := time.Now()
+	// s := time.Now()
+	// defer func() {
+	// 	log.Println(time.Since(s))
+	// }()
+	// timePost := time.Now()
 
 	req, err := http.NewRequest(http.MethodPost, c.baseUrl, strings.NewReader(cmd))
 	if err != nil {
@@ -50,16 +60,16 @@ func (c *Client) post(cmd string) bool {
 		log.Println(err)
 		return false
 	}
-	log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
+	// log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
 	val := map[string]interface{}{}
-	timePost = time.Now()
+	// timePost = time.Now()
 	json.NewDecoder(resp.Body).Decode(&val)
 	if len(val) != 2 {
 		log.Println(val)
 		return false
 	}
-	log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
-	log.Println(val["ok"], val["elapsed"])
+	// log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
+	// log.Println(val["ok"], val["elapsed"])
 	return val["ok"].(bool)
 }
 
@@ -79,12 +89,19 @@ func init() {
 
 		charLock.Lock()
 		c, ok := chars[thing.Nearby.ID]
-		charLock.Unlock()
 		if ok {
 			c.Things <- thing.KeyedPoint
 		} else {
-			log.Printf("%s %s %s", req.URL.String(), thing.ID, thing.Nearby.ID)
+			if thing.Nearby.ID == "" {
+				thing.KeyedPoint.Object.Type = "delete"
+				for _, c := range chars {
+					c.Things <- thing.KeyedPoint
+				}
+			} else {
+				log.Printf("url [%s] ID [%s] nearID [%s]", req.URL.String(), thing.ID, thing.Nearby.ID)
+			}
 		}
+		charLock.Unlock()
 		req.Body.Close()
 		resp.WriteHeader(http.StatusOK)
 	})

@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -14,8 +15,11 @@ func init() {
 		return
 	}
 	inf, err := os.Lstat("SDL2.dll")
-	if os.IsExist(err) {
+	if !os.IsNotExist(err) {
+		fmt.Println("sdl2.dll already there")
 		return
+	} else {
+		fmt.Println("Attempting to dl the sdl2.dll lib")
 	}
 
 	resp, err := http.Get("http://libsdl.org/release/SDL2-2.0.9-win32-x64.zip")

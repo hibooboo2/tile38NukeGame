@@ -65,6 +65,7 @@ func EventLoop(r *sdl.Renderer) {
 			switch e := event.(type) {
 			case *sdl.KeyboardEvent:
 				log.Println(e.Keysym)
+
 				switch e.Keysym.Scancode {
 				case sdl.SCANCODE_W:
 					player.MoveRel(0, 1)
@@ -74,6 +75,11 @@ func EventLoop(r *sdl.Renderer) {
 					player.MoveRel(1, 0)
 				case sdl.SCANCODE_D:
 					player.MoveRel(-1, 0)
+				case sdl.SCANCODE_SPACE:
+					// if e.Repeat > 0 {
+					// 	continue
+					// }
+					player.Shoot()
 				}
 			case *sdl.MouseMotionEvent:
 			case *sdl.MouseButtonEvent:
