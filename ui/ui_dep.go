@@ -1,6 +1,6 @@
-// +build !js,!wasm
+// +build windows
 
-package main
+package ui
 
 import (
 	"archive/zip"
@@ -8,14 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"runtime"
 )
 
 func init() {
-	if runtime.GOOS != "windows" {
-		// log.Println("Not windows dling anyways")
-		return
-	}
 	inf, err := os.Lstat("SDL2.dll")
 	if !os.IsNotExist(err) {
 		fmt.Println("sdl2.dll already there")

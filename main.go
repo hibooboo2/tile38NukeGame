@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hibooboo2/tile38NukeGame/game"
+	"github.com/hibooboo2/tile38NukeGame/ui"
 )
 
 var count int
@@ -24,6 +25,32 @@ func main() {
 	}
 	player = game.NewCharacter(name)
 	log.Println("Starting game!")
-	ui()
+	go func() {
+		events := ui.GetKeyboardEvents()
+		for evt := range events {
+			log.Println("Got event:", evt)
+			switch evt.Key {
+			case ui.K_w:
+				player.MoveRel(0, 1)
+			case ui.K_a:
+				player.MoveRel(1, 0)
+			case ui.K_s:
+				player.MoveRel(0, -1)
+			case ui.K_d:
+				player.MoveRel(-1, 0)
+			case ui.K_q:
+				player.MoveRel(.707, .707)
+			case ui.K_e:
+				player.MoveRel(-.707, .707)
+			case ui.K_z:
+				player.MoveRel(.707, -.707)
+			case ui.K_c:
+				player.MoveRel(-.707, -.707)
+			case ui.K_SPACE:
+				player.Shoot()
+			}
+		}
+	}()
+	ui.Start(player)
 	game.ClearNotifications()
 }

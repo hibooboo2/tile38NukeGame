@@ -4,8 +4,11 @@ package game
 
 import (
 	"encoding/json"
+	"log"
 	"strings"
 	"syscall/js"
+
+	"github.com/pkg/errors"
 )
 
 type Client struct {
@@ -30,15 +33,19 @@ func NewClient(baseUrl string) *Client {
 	return c
 }
 
-func (c *Client) post(cmd string) bool {
+func (c *Client) post(cmd string) error {
 	cmd = "tile38: " + cmd
-	c.ws.Call("send", cmd)
+	go c.ws.Call("send", cmd)
 	resp := <-c.data
-	return strings.Contains(resp, "true")
+	log.Println(resp)
+	if strings.Contains(resp, "true") {
+		return nil
+	}
+	return errors.Errorf("failed to send command")
 }
 
-func (c *Client) Notifications(name string) bool {
-	return false
+func (c *Client) Notifications(name string) error {
+	return nil
 }
 
 func ClearNotifications() {

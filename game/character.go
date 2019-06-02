@@ -10,11 +10,14 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/hibooboo2/tile38NukeGame/ui"
 )
 
 const meter = .00001 / 1.111
 
 type Character struct {
+	sync.RWMutex
 	name          string
 	c             *Client
 	posx, posy    float64
@@ -22,8 +25,6 @@ type Character struct {
 	currentThings map[string]KeyedPoint
 	bullets       map[int]*Bullet
 	bulletChan    chan *Bullet
-	move          chan struct{}
-	mini          chan struct{}
 	colors        map[string]color.RGBA
 }
 
@@ -107,10 +108,8 @@ func NewCharacter(name string) *Character {
 		currentThings: make(map[string]KeyedPoint),
 		bullets:       make(map[int]*Bullet),
 		bulletChan:    make(chan *Bullet),
-		move:          make(chan struct{}),
-		mini:          make(chan struct{}),
 		name:          name,
-		c:             NewClient("http://10.14.12.11:9851"),
+		c:             NewClient(Tile38ServerURL),
 	}
 	go c.handleThings()
 	go c.handleBullets()
@@ -126,10 +125,10 @@ func (c *Character) Name() string {
 }
 
 func (c *Character) MoveRel(x, y float64) {
-	<-c.move
+	c.Lock()
 	c.posx += (x * meter)
 	c.posy += (y * meter)
-	c.move <- struct{}{}
+	c.Unlock()
 }
 
 func (c *Character) handleBullets() {
@@ -140,8 +139,8 @@ func (c *Character) handleBullets() {
 			c.bullets[b.num] = b
 		case <-t.C:
 			for _, b := range c.bullets {
-				c.c.post(fmt.Sprintf("SET fleet %d point %f %f", b.num, b.x, b.y))
 				b.Move()
+				c.c.post(fmt.Sprintf("SET fleet %d point %f %f", b.num, b.x, b.y))
 				if time.Since(b.made) > time.Second*5 {
 					c.c.post(fmt.Sprintf("DEL fleet %d", b.num))
 					delete(c.bullets, b.num)
@@ -151,8 +150,11 @@ func (c *Character) handleBullets() {
 	}
 }
 func (c *Character) handleThings() {
-	c.c.Notifications(c.name)
-	ticker := time.NewTicker(time.Millisecond * 1)
+	err := c.c.Notifications(c.name)
+	if err != nil {
+		panic(err)
+	}
+	ticker := time.NewTicker(time.Millisecond * 10)
 	lastx, lasty := c.posx, c.posy
 	for {
 		select {
@@ -162,9 +164,10 @@ func (c *Character) handleThings() {
 				continue
 			}
 
+			c.Lock()
 			prev := c.currentThings[t.ID]
 			c.currentThings[t.ID] = t
-
+			c.Unlock()
 			if t.ID == c.name {
 				log.Println("WTF!", c.name, t.ID)
 			}
@@ -176,19 +179,16 @@ func (c *Character) handleThings() {
 					log.Println("Someone moved:", c.name, t.ID, t.Object.Coordinates.String())
 				}
 			}
-		case c.mini <- struct{}{}:
-			<-c.mini
-		case c.move <- struct{}{}:
-			<-c.move
-			fmt.Println("moved", c.name, c.posx*(1/meter), c.posy*(1/meter))
 		case <-ticker.C:
+			c.RLock()
 			if lastx != c.posx || lasty != c.posy {
-				ok := c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
-				if !ok {
-					log.Println(ok, c.posx, c.posy)
+				err := c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
+				if err != nil {
+					log.Println("failed to set position for player!", err)
 				}
 				lastx, lasty = c.posx, c.posy
 			}
+			c.RUnlock()
 		}
 	}
 }
@@ -203,11 +203,12 @@ func (c *Character) Shoot() {
 	}
 }
 
-func (c *Character) MiniMap(drawBox func(x, y, size int, c color.RGBA), startX, startY, size int) {
-	<-c.mini
+func (c *Character) Render(r ui.Renderer) {
+	c.RLock()
+	size := 300
 	// fmt.Print(c.name, " ", len(c.currentThings), " ")
-	drawBox(startX+size/2, startY+size/2, size, color.RGBA{255, 255, 0, 0})
-	drawBox(size/2+startX, size/2+startY, 4, getUserColor(c.name))
+	r.DrawFilledSquare(size/2, size/2, size, color.RGBA{255, 255, 0, 0})
+	r.DrawFilledSquare(size/2, size/2, 4, getUserColor(c.name))
 
 	for _, t := range c.currentThings {
 		x := c.posx
@@ -216,11 +217,10 @@ func (c *Character) MiniMap(drawBox func(x, y, size int, c color.RGBA), startX, 
 		y -= t.Object.Coordinates[0]
 		x *= (1 / meter)
 		y *= (1 / meter)
-
-		drawBox(int(x)+size/2+startX, int(y)+size/2+startY, 4, getUserColor(t.ID))
+		r.DrawFilledSquare(int(x)+size/2, int(y)+size/2, 4, getUserColor(t.ID))
 	}
+	c.RUnlock()
 	// fmt.Println()
-	c.mini <- struct{}{}
 }
 
 var (

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type Client struct {
@@ -21,8 +23,8 @@ func NewClient(baseUrl string) *Client {
 	return &Client{&http.Client{Timeout: time.Second * 2}, baseUrl}
 }
 
-func (c *Client) post(cmd string) bool {
-	// http://10.14.12.11:9851
+func (c *Client) post(cmd string) error {
+	// Tile38ServerURL
 	// s := time.Now()
 	// defer func() {
 	// 	log.Println(time.Since(s))
@@ -31,13 +33,11 @@ func (c *Client) post(cmd string) bool {
 
 	req, err := http.NewRequest(http.MethodPost, c.baseUrl, strings.NewReader(cmd))
 	if err != nil {
-		log.Println(err)
-		return false
+		return errors.Wrap(err, "failed to create request")
 	}
 	resp, err := c.c.Do(req)
 	if err != nil {
-		log.Println(err)
-		return false
+		return errors.Wrap(err, "failed to do request")
 	}
 	// log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
 	val := map[string]interface{}{}
@@ -45,25 +45,29 @@ func (c *Client) post(cmd string) bool {
 	json.NewDecoder(resp.Body).Decode(&val)
 	if len(val) != 2 {
 		log.Println(val)
-		return false
+		return errors.Errorf("decoded val incorrect!")
 	}
 	// log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
-	// log.Println(val["ok"], val["elapsed"])
-	return val["ok"].(bool)
+	log.Println(val["ok"], val["elapsed"])
+	if !val["ok"].(bool) {
+		return errors.Errorf("Request failed")
+	}
+	return nil
 }
 
-func (c *Client) Notifications(name string) bool {
+func (c *Client) Notifications(name string) error {
 	hookurl := "http://10.14.12.68:8081"
+	hookurl = "http://localhost:8081"
 	if boundAddr != "" {
 		hookurl = boundAddr
 	}
 	cmd := fmt.Sprintf("SETHOOK %[1]s %[2]s/%[1]s NEARBY fleet FENCE ROAM fleet %[1]s 1000", name, hookurl)
-	fmt.Println(cmd)
+	log.Println("Noticfications made!", cmd)
 	return c.post(cmd)
 }
 
 func ClearNotifications() {
-	c := NewClient("http://10.14.12.11:9851")
+	c := NewClient(Tile38ServerURL)
 	charLock.Lock()
 	defer charLock.Unlock()
 	for char := range chars {
@@ -80,7 +84,8 @@ func init() {
 		thing := Thing{}
 		err := json.NewDecoder(req.Body).Decode(&thing)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			return
 		}
 		events <- thing
 		req.Body.Close()

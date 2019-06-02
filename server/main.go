@@ -9,7 +9,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(*http.Request) bool { return true },
+} // use default options
 
 func main() {
 	//Basic server that serves up js ui and also exposes a endpoint for websocket to connect to.
@@ -41,7 +43,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		}
 		msg := string(message)
 		if strings.HasPrefix(msg, "tile38: ") {
-			resp, err := http.Post("http://10.14.12.11:9851", "", strings.NewReader(strings.TrimPrefix(msg, "tile38: ")))
+			resp, err := http.Post("http://localhost:9851/", "", strings.NewReader(strings.TrimPrefix(msg, "tile38: ")))
 			if err != nil {
 				c.WriteMessage(mt, []byte(err.Error()))
 			} else {
