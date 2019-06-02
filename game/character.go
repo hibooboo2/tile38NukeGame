@@ -1,7 +1,6 @@
 package game
 
 import (
-	"bytes"
 	"fmt"
 	"hash/fnv"
 	"image/color"
@@ -11,18 +10,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hibooboo2/tile38NukeGame/game/model"
 	"github.com/hibooboo2/tile38NukeGame/ui"
 )
-
-const meter = .00001 / 1.111
 
 type Character struct {
 	sync.RWMutex
 	name          string
 	c             *Client
 	posx, posy    float64
-	Things        chan KeyedPoint
-	currentThings map[string]KeyedPoint
+	Things        chan model.KeyedPoint
+	currentThings map[string]model.KeyedPoint
 	bullets       map[int]*Bullet
 	bulletChan    chan *Bullet
 	colors        map[string]color.RGBA
@@ -39,77 +37,36 @@ type Bullet struct {
 func (b *Bullet) Move() {
 	switch b.dir {
 	case 0:
-		b.x += meter
+		b.x += model.Meter
 	case 1:
-		b.x -= meter
+		b.x -= model.Meter
 	case 2:
-		b.y += meter
+		b.y += model.Meter
 	case 3:
-		b.y -= meter
+		b.y -= model.Meter
 	case 4:
-		b.x += meter * .707
-		b.y += meter * .707
+		b.x += model.Meter * .707
+		b.y += model.Meter * .707
 	case 5:
-		b.x += meter * .707
-		b.y -= meter * .707
+		b.x += model.Meter * .707
+		b.y -= model.Meter * .707
 	case 6:
-		b.x -= meter * .707
-		b.y += meter * .707
+		b.x -= model.Meter * .707
+		b.y += model.Meter * .707
 	case 7:
-		b.x -= meter * .707
-		b.y -= meter * .707
+		b.x -= model.Meter * .707
+		b.y -= model.Meter * .707
 	}
-}
-
-type Thing struct {
-	KeyedPoint
-	Command string `json:"command"`
-	Group   string `json:"group"`
-	Detect  string `json:"detect"`
-	Hook    string `json:"hook"`
-	Time    string `json:"time"`
-	// Faraway DistancePoint `json:"faraway"`
-	Nearby DistancePoint `json:"nearby"`
-}
-
-type KeyedPoint struct {
-	Key    string `json:"key"`
-	ID     string `json:"id"`
-	Object Point  `json:"object"`
-}
-
-type DistancePoint struct {
-	KeyedPoint
-	Meters float64 `json:"meters"`
-}
-type Point struct {
-	Type        string `json:"type"`
-	Coordinates Coord  `json:"coordinates"`
-}
-
-type Coord []float64
-
-func (c Coord) String() string {
-	var b bytes.Buffer
-	b.WriteString("[ ")
-	for i, val := range c {
-		b.WriteString(fmt.Sprintf("%f", val*(1/meter)))
-		if i < len(c)-1 {
-			b.WriteString(" ,")
-		}
-	}
-	b.WriteString(" ]")
-	return b.String()
 }
 
 func NewCharacter(name string) *Character {
 	c := &Character{
-		Things:        make(chan KeyedPoint),
-		currentThings: make(map[string]KeyedPoint),
+		Things:        make(chan model.KeyedPoint),
+		currentThings: make(map[string]model.KeyedPoint),
 		bullets:       make(map[int]*Bullet),
 		bulletChan:    make(chan *Bullet),
 		name:          name,
-		c:             NewClient(Tile38ServerURL),
+		c:             NewClient(Tile38ServerURL, name),
 	}
 	go c.handleThings()
 	go c.handleBullets()
@@ -126,8 +83,8 @@ func (c *Character) Name() string {
 
 func (c *Character) MoveRel(x, y float64) {
 	c.Lock()
-	c.posx += (x * meter)
-	c.posy += (y * meter)
+	c.posx += (x * model.Meter)
+	c.posy += (y * model.Meter)
 	c.Unlock()
 }
 
@@ -215,8 +172,8 @@ func (c *Character) Render(r ui.Renderer) {
 		y := c.posy
 		x -= t.Object.Coordinates[1]
 		y -= t.Object.Coordinates[0]
-		x *= (1 / meter)
-		y *= (1 / meter)
+		x *= (1 / model.Meter)
+		y *= (1 / model.Meter)
 		r.DrawFilledSquare(int(x)+size/2, int(y)+size/2, 4, getUserColor(t.ID))
 	}
 	c.RUnlock()

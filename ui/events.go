@@ -24,7 +24,7 @@ func startEventHandler() {
 		case evtChan := <-newKeyboardEventChan:
 			keyboardEventChans = append(keyboardEventChans, evtChan)
 		case evt := <-mainKeyBoardEvents:
-			log.Println("Got event!")
+			// log.Println("Got event!")
 			for _, evtChan := range keyboardEventChans {
 				select {
 				case <-t.C:

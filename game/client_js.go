@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall/js"
 
+	"github.com/hibooboo2/tile38NukeGame/game/model"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +17,7 @@ type Client struct {
 	data chan string
 }
 
-func NewClient(baseUrl string) *Client {
+func NewClient(baseUrl string, name string) *Client {
 	c := &Client{}
 	c.ws = js.Global().Get("WebSocket").New("ws://localhost:8000/events")
 	started := make(chan struct{})
@@ -29,6 +30,7 @@ func NewClient(baseUrl string) *Client {
 		close(started)
 		return nil
 	}))
+	go eventFollower(name)
 	<-started
 	return c
 }
@@ -51,14 +53,17 @@ func (c *Client) Notifications(name string) error {
 func ClearNotifications() {
 
 }
-func init() {
+func eventFollower(name string) {
 	go func() {
-		ws := js.Global().Get("WebSocket").New("ws://localhost:8000/events")
+		ws := js.Global().Get("WebSocket").New("ws://localhost:8000/events?id=" + name)
 		ws.Call("addEventListener", "open", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			ws.Set("onmessage", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-				evt := Thing{}
+				evt := model.Thing{}
 				if json.Unmarshal([]byte(args[0].Get("data").String()), &evt) == nil {
+					log.Println(evt)
 					events <- evt
+				} else {
+					log.Println(args[0].Get("data").String())
 				}
 				return nil
 			}))

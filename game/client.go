@@ -3,12 +3,14 @@ package game
 import (
 	"log"
 	"sync"
+
+	"github.com/hibooboo2/tile38NukeGame/game/model"
 )
 
 var (
 	chars    = map[string]*Character{}
 	charLock = sync.Mutex{}
-	events   = make(chan Thing)
+	events   = make(chan model.Thing)
 )
 
 // const Tile38ServerURL = "http://10.14.12.11:9851"

@@ -5,7 +5,6 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"log"
 	"syscall/js"
 	"time"
 )
@@ -33,7 +32,7 @@ func events() {
 	keydown := make(chan rune, 2)
 	keyup := make(chan rune, 2)
 	js.Global().Get("document").Set("onkeydown", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		log.Printf("evt: %T %s", args[0], args[0].Get("key"))
+		// log.Printf("evt: %T %s", args[0], args[0].Get("key"))
 		if args[0].Get("repeat").String() == "false" {
 			key := args[0].Get("key").String()[0]
 			keydown <- rune(key)
@@ -41,7 +40,7 @@ func events() {
 		return nil
 	}))
 	js.Global().Get("document").Set("onkeyup", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		log.Printf("evt: %T %s", args[0], args[0].Get("key"))
+		// log.Printf("evt: %T %s", args[0], args[0].Get("key"))
 		key := args[0].Get("key").String()[0]
 		keyup <- rune(key)
 		return nil

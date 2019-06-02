@@ -28,7 +28,7 @@ func main() {
 	go func() {
 		events := ui.GetKeyboardEvents()
 		for evt := range events {
-			log.Println("Got event:", evt)
+			// log.Println("Got event:", evt)
 			switch evt.Key {
 			case ui.K_w:
 				player.MoveRel(0, 1)

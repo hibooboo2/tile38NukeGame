@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hibooboo2/tile38NukeGame/game/model"
 	"github.com/pkg/errors"
 )
 
@@ -19,7 +20,7 @@ type Client struct {
 	baseUrl string
 }
 
-func NewClient(baseUrl string) *Client {
+func NewClient(baseUrl string, name string) *Client {
 	return &Client{&http.Client{Timeout: time.Second * 2}, baseUrl}
 }
 
@@ -67,7 +68,7 @@ func (c *Client) Notifications(name string) error {
 }
 
 func ClearNotifications() {
-	c := NewClient(Tile38ServerURL)
+	c := NewClient(Tile38ServerURL, "")
 	charLock.Lock()
 	defer charLock.Unlock()
 	for char := range chars {
@@ -81,7 +82,7 @@ var boundAddr string
 func init() {
 	log.SetFlags(log.Lshortfile)
 	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
-		thing := Thing{}
+		thing := model.Thing{}
 		err := json.NewDecoder(req.Body).Decode(&thing)
 		if err != nil {
 			log.Println(err)
