@@ -47,7 +47,7 @@ func events() {
 	}))
 	go func() {
 		keymap := map[rune]bool{}
-		t := time.NewTicker(time.Millisecond * 10)
+		t := time.NewTicker(time.Millisecond * 100)
 		for {
 			select {
 			case key := <-keydown:

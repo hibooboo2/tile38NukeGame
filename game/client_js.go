@@ -21,7 +21,7 @@ func NewClient(baseUrl string, name string) *Client {
 	c := &Client{}
 	c.ws = js.Global().Get("WebSocket").New("ws://localhost:8000/events")
 	started := make(chan struct{})
-	c.data = make(chan string)
+	c.data = make(chan string, 2)
 	c.ws.Call("addEventListener", "open", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		c.ws.Set("onmessage", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			c.data <- args[0].Get("data").String()
@@ -60,7 +60,7 @@ func eventFollower(name string) {
 			ws.Set("onmessage", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 				evt := model.Thing{}
 				if json.Unmarshal([]byte(args[0].Get("data").String()), &evt) == nil {
-					log.Println(evt)
+					log.Printf("Evt: %#v", evt)
 					events <- evt
 				} else {
 					log.Println(args[0].Get("data").String())

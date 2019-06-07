@@ -60,20 +60,16 @@ func EventLoop(r *sdl.Renderer, ren Renderable) {
 	log.Println(keyMap[0])
 	events := make(chan sdl.Event, 2)
 	quit := make(chan struct{})
-
+	sdl.GetKeyboardState()
 	go func() {
 		for event := range events {
 			switch e := event.(type) {
 			case *sdl.KeyboardEvent:
 				k := keyMap[int32(e.Keysym.Sym)]
-				if e.Repeat > 0 {
-					log.Println("repeat key!")
-					// continue
-				}
-				log.Println("Got key: ", e.Keysym.Sym)
 				mainKeyBoardEvents <- KeyboardEvent{
 					Key: k,
 				}
+			case *sdl.TextInputEvent:
 			case *sdl.MouseMotionEvent:
 			case *sdl.MouseButtonEvent:
 			case *sdl.QuitEvent:

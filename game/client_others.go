@@ -6,22 +6,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/hibooboo2/tile38NukeGame/game/model"
+	"github.com/hibooboo2/tile38NukeGame/tile38Client"
+
 	"github.com/pkg/errors"
 )
 
 type Client struct {
 	c       *http.Client
 	baseUrl string
+	tc      *tile38Client.Tile38RedisClient
 }
 
 func NewClient(baseUrl string, name string) *Client {
-	return &Client{&http.Client{Timeout: time.Second * 2}, baseUrl}
+	c, err := tile38Client.New(":9851")
+	if err != nil {
+		panic(err)
+	}
+	return &Client{&http.Client{Timeout: time.Second * 2}, baseUrl, c}
 }
 
 func (c *Client) post(cmd string) error {
@@ -49,7 +54,6 @@ func (c *Client) post(cmd string) error {
 		return errors.Errorf("decoded val incorrect!")
 	}
 	// log.Println(time.Since(timePost).Nanoseconds() / int64(time.Millisecond))
-	log.Println(val["ok"], val["elapsed"])
 	if !val["ok"].(bool) {
 		return errors.Errorf("Request failed")
 	}
@@ -57,14 +61,13 @@ func (c *Client) post(cmd string) error {
 }
 
 func (c *Client) Notifications(name string) error {
-	hookurl := "http://10.14.12.68:8081"
-	hookurl = "http://localhost:8081"
-	if boundAddr != "" {
-		hookurl = boundAddr
-	}
-	cmd := fmt.Sprintf("SETHOOK %[1]s %[2]s/%[1]s NEARBY fleet FENCE ROAM fleet %[1]s 1000", name, hookurl)
-	log.Println("Noticfications made!", cmd)
-	return c.post(cmd)
+	// hookurl := "http://10.14.12.68:8081"
+	// hookurl = "http://localhost:8081"
+
+	// cmd := fmt.Sprintf("SETHOOK %[1]s %[2]s/%[1]s NEARBY fleet FENCE ROAM fleet %[1]s 1000", name, hookurl)
+	// log.Println("Noticfications made!", cmd)
+	// return c.post(cmd)
+	return nil
 }
 
 func ClearNotifications() {
@@ -75,41 +78,4 @@ func ClearNotifications() {
 		cmd := fmt.Sprintf("DELHOOK %s", char)
 		c.post(cmd)
 	}
-}
-
-var boundAddr string
-
-func init() {
-	log.SetFlags(log.Lshortfile)
-	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
-		thing := model.Thing{}
-		err := json.NewDecoder(req.Body).Decode(&thing)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		events <- thing
-		req.Body.Close()
-		resp.WriteHeader(http.StatusOK)
-	})
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(err)
-	}
-
-	boundAddr = fmt.Sprintf("http://%s:%d", GetBoundAddr(), listener.Addr().(*net.TCPAddr).Port)
-	go http.Serve(listener, nil)
-}
-
-// Get preferred outbound ip of this machine
-func GetBoundAddr() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP.String()
 }

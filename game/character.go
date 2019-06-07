@@ -21,7 +21,6 @@ type Character struct {
 	posx, posy    float64
 	Things        chan model.KeyedPoint
 	currentThings map[string]model.KeyedPoint
-	bullets       map[int]*Bullet
 	bulletChan    chan *Bullet
 	colors        map[string]color.RGBA
 }
@@ -61,13 +60,24 @@ func (b *Bullet) Move() {
 
 func NewCharacter(name string) *Character {
 	c := &Character{
-		Things:        make(chan model.KeyedPoint),
+		Things:        make(chan model.KeyedPoint, 2),
 		currentThings: make(map[string]model.KeyedPoint),
-		bullets:       make(map[int]*Bullet),
-		bulletChan:    make(chan *Bullet),
+		bulletChan:    make(chan *Bullet, 2),
 		name:          name,
-		c:             NewClient(Tile38ServerURL, name),
 	}
+	c.c = NewClient(Tile38ServerURL, name)
+	things, err := c.c.tc.Nearby("fleet", "fleet", name, 300)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		for t := range things {
+			if t.Command == "del" {
+				t.KeyedPoint.Object.Type = "delete"
+			}
+			c.Things <- t.KeyedPoint
+		}
+	}()
 	go c.handleThings()
 	go c.handleBullets()
 	c.MoveRel(1, 1)
@@ -89,20 +99,30 @@ func (c *Character) MoveRel(x, y float64) {
 }
 
 func (c *Character) handleBullets() {
+	bullets := map[int]*Bullet{}
 	t := time.NewTicker(time.Millisecond * 40)
 	for {
 		select {
-		case b := <-c.bulletChan:
-			c.bullets[b.num] = b
 		case <-t.C:
-			for _, b := range c.bullets {
+			toDelete := []*Bullet{}
+			for _, b := range bullets {
 				b.Move()
-				c.c.post(fmt.Sprintf("SET fleet %d point %f %f", b.num, b.x, b.y))
+				err := c.c.tc.Set("fleet", fmt.Sprint(b.num), b.x, b.y)
+				if err != nil {
+					log.Println("failed to set bullet pos: ", err)
+				}
 				if time.Since(b.made) > time.Second*5 {
-					c.c.post(fmt.Sprintf("DEL fleet %d", b.num))
-					delete(c.bullets, b.num)
+					toDelete = append(toDelete, b)
 				}
 			}
+			for _, b := range toDelete {
+				err := c.c.post(fmt.Sprintf("DEL fleet %d", b.num))
+				if err == nil {
+					delete(bullets, b.num)
+				}
+			}
+		case b := <-c.bulletChan:
+			bullets[b.num] = b
 		}
 	}
 }
@@ -116,12 +136,13 @@ func (c *Character) handleThings() {
 	for {
 		select {
 		case t := <-c.Things:
+			c.Lock()
 			if t.Object.Type == "delete" {
 				delete(c.currentThings, t.ID)
+				c.Unlock()
 				continue
 			}
 
-			c.Lock()
 			prev := c.currentThings[t.ID]
 			c.currentThings[t.ID] = t
 			c.Unlock()
@@ -139,11 +160,13 @@ func (c *Character) handleThings() {
 		case <-ticker.C:
 			c.RLock()
 			if lastx != c.posx || lasty != c.posy {
-				err := c.c.post(fmt.Sprintf("SET fleet %s point %f %f", c.name, c.posx, c.posy))
+				err := c.c.tc.Set("fleet", c.name, c.posx, c.posy)
 				if err != nil {
 					log.Println("failed to set position for player!", err)
+
+				} else {
+					lastx, lasty = c.posx, c.posy
 				}
-				lastx, lasty = c.posx, c.posy
 			}
 			c.RUnlock()
 		}

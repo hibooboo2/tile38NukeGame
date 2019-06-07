@@ -12,13 +12,13 @@ var (
 )
 
 func init() {
-	mainKeyBoardEvents = make(chan KeyboardEvent)
-	newKeyboardEventChan = make(chan chan KeyboardEvent)
+	mainKeyBoardEvents = make(chan KeyboardEvent, 2)
+	newKeyboardEventChan = make(chan chan KeyboardEvent, 2)
 	go startEventHandler()
 }
 
 func startEventHandler() {
-	t := time.NewTicker(time.Millisecond * 100)
+	t := time.NewTicker(time.Millisecond * 1000)
 	for {
 		select {
 		case evtChan := <-newKeyboardEventChan:
@@ -37,7 +37,7 @@ func startEventHandler() {
 }
 
 func GetKeyboardEvents() <-chan KeyboardEvent {
-	evtChan := make(chan KeyboardEvent, 200)
+	evtChan := make(chan KeyboardEvent, 2)
 	newKeyboardEventChan <- evtChan
 	return evtChan
 }

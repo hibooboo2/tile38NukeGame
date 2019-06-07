@@ -18,7 +18,7 @@ var player *game.Character
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	log.SetFlags(log.Lshortfile)
+	log.SetFlags(log.Llongfile)
 	name, _ := os.Hostname()
 	if len(os.Args) > 1 {
 		name = os.Args[1]
